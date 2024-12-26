@@ -1,22 +1,21 @@
 use std::error::Error;
 
 use lsp_server::{Connection, Message};
-use lsp_types::{ClientCapabilities, InitializeParams, ServerCapabilities};
+use lsp_types::ServerCapabilities;
 
 use crate::handler::{handle_definition, handle_didChange, handle_didOpen, LspResult};
 use crate::state::State;
 
 pub mod handler;
 pub mod state;
+pub mod treesitter;
 
 fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     eprintln!("Lets LSP server starting");
 
     let (connection, io_threads) = Connection::stdio();
-    let (id, params) = connection.initialize_start()?;
-    let init_params: InitializeParams = serde_json::from_value(params).unwrap();
+    let (id, _) = connection.initialize_start()?;
 
-    let client_capabilities: ClientCapabilities = init_params.capabilities;
     let server_capabilities = ServerCapabilities {
         text_document_sync: Some(lsp_types::TextDocumentSyncCapability::Kind(
             lsp_types::TextDocumentSyncKind::FULL,

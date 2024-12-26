@@ -5,6 +5,7 @@ use lsp_types::{
 };
 
 use crate::state::State;
+use crate::treesitter::{extract_filename, is_mixin_root_node};
 
 #[derive(Debug)]
 pub struct DefinitionResult {
@@ -44,17 +45,25 @@ fn go_to_def_filename(uri: &str, filename: &str) -> String {
 
 pub fn handle_definition(req: Request, state: &mut State) -> Option<LspResult> {
     let params: GotoTypeDefinitionParams = serde_json::from_value(req.params).ok()?;
-    let filename = "lets.my.yaml";
-    let uri = go_to_def_filename(
-        params
-            .text_document_position_params
-            .text_document
-            .uri
-            .as_str(),
-        filename,
-    )
-    .parse()
-    .ok();
+
+    let uri = params
+        .text_document_position_params
+        .text_document
+        .uri
+        .as_str();
+
+    let doc = state.get_document(uri)?;
+    let pos = params.text_document_position_params.position;
+
+    if !is_mixin_root_node(doc, &pos) {
+        return None;
+    }
+
+    let Some(filename) = extract_filename(doc, &pos) else {
+        return None;
+    };
+
+    let uri = go_to_def_filename(uri, &filename).parse().ok();
     match uri {
         Some(uri) => {
             let result = DefinitionResultType::Scalar(
