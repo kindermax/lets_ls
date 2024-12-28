@@ -14,8 +14,30 @@
 
 ## Development
 
+Build:
+
 ```bash
 cargo build
+```
+
+Test:
+
+```bash
+cargo test
+```
+
+Lint:
+
+```bash
+cargo clippy
+# or to fix lints
+cargo clippy --fix --bin "lets_ls"
+```
+
+## Release build
+
+```bash
+cargo build --release
 ```
 
 ## Use in neovim

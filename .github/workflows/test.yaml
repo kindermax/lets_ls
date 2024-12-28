@@ -1,0 +1,35 @@
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - assigned
+      - opened
+      - synchronize
+      - reopened
+
+env:
+  CARGO_TERM_COLOR: always
+
+name: Test
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run tests
+        run: cargo test
+  lints:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run linter
+        run: cargo clippy
