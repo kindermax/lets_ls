@@ -5,9 +5,10 @@ fn is_cursor_within_node(node: &Node, pos: &lsp_types::Position) -> bool {
     let start_point = node.start_position();
     let end_point = node.end_position();
 
-  pos.line as usize >= start_point.row && pos.line as usize <= end_point.row &&
-         pos.character as usize >= start_point.column &&
-         pos.character as usize <= end_point.column
+    pos.line as usize >= start_point.row
+        && pos.line as usize <= end_point.row
+        && pos.character as usize >= start_point.column
+        && pos.character as usize <= end_point.column
 }
 
 fn is_cursor_at_line(node: &Node, pos: &lsp_types::Position) -> bool {
@@ -53,8 +54,7 @@ pub fn extract_filename(text: &str, pos: &lsp_types::Position) -> Option<String>
     while let Some(m) = matches.next() {
         let found = m.captures.iter().find(|c| {
             if let Some(parent) = c.node.parent() {
-                return parent.kind() == "block_sequence_item"
-                    && is_cursor_at_line(&c.node, pos);
+                return parent.kind() == "block_sequence_item" && is_cursor_at_line(&c.node, pos);
             }
             false
         });
@@ -63,7 +63,6 @@ pub fn extract_filename(text: &str, pos: &lsp_types::Position) -> Option<String>
         }
     }
     None
-
 }
 
 pub fn is_mixin_root_node(text: &str, pos: &lsp_types::Position) -> bool {
@@ -106,4 +105,62 @@ pub fn is_mixin_root_node(text: &str, pos: &lsp_types::Position) -> bool {
         }
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use lsp_types::Position;
+
+    #[test]
+    fn test_detect_mixins_node() {
+        let doc = r#"
+shell: bash
+mixins:
+  - lets.my.yaml
+commands:
+  test:
+    cmd: echo Test"#
+            .trim();
+
+        let tests = vec![
+            (Position::new(0, 0), false),
+            (Position::new(1, 0), true),
+            (Position::new(2, 0), true),
+            (Position::new(2, 15), true),
+            (Position::new(3, 0), false),
+        ];
+        for (i, (pos, expect)) in tests.into_iter().enumerate() {
+            let result = is_mixin_root_node(doc, &pos);
+            assert_eq!(
+                result, expect,
+                "Case {i}: expected {expect}, actual {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_extract_filename_from_mixins_item() {
+        let doc = r#"
+shell: bash
+mixins:
+  - lets.my.yaml
+commands:
+  test:
+    cmd: echo Test"#
+            .trim();
+
+        let tests = vec![
+            (Position::new(1, 0), None),
+            (Position::new(2, 0), Some("lets.my.yaml".to_string())),
+            (Position::new(2, 15), Some("lets.my.yaml".to_string())),
+        ];
+        for (i, (pos, expect)) in tests.into_iter().enumerate() {
+            let result = extract_filename(doc, &pos);
+            assert_eq!(
+                result, expect,
+                "Case {i}: expected {expect:?}, actual {result:?}"
+            );
+        }
+    }
 }
