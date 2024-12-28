@@ -59,9 +59,7 @@ pub fn handle_definition(req: Request, state: &mut State) -> Option<LspResult> {
         return None;
     }
 
-    let Some(filename) = extract_filename(doc, &pos) else {
-        return None;
-    };
+    let filename = extract_filename(doc, &pos)?;
 
     let uri = go_to_def_filename(uri, &filename).parse().ok();
     match uri {
