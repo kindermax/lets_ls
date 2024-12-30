@@ -40,7 +40,7 @@ cargo clippy --fix --bin "lets_ls"
 cargo build --release
 ```
 
-## Use in neovim
+## Integration with Neovim
 
 Add new filetype:
 
@@ -82,3 +82,7 @@ return {
   },
 }
 ```
+
+## Integration with VSCode
+
+Extension can be found [here](https://marketplace.visualstudio.com/items?itemName=kindritskyimax.lets-ls).
