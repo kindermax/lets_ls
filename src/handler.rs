@@ -1,11 +1,12 @@
 use lsp_server::{Notification, Request, RequestId};
+use lsp_types::{CompletionParams, Position};
 use lsp_types::{
     lsif::DefinitionResultType, request::GotoTypeDefinitionParams, DidChangeTextDocumentParams,
     DidOpenTextDocumentParams, Location, Range,
 };
 
 use crate::state::State;
-use crate::treesitter::{extract_filename, is_mixin_root_node};
+use crate::treesitter::{extract_filename, get_commands, get_position_type, is_mixin_root_node, word_after_cursor, word_before_cursor, Command, PositionType};
 
 #[derive(Debug)]
 pub struct DefinitionResult {
@@ -14,9 +15,29 @@ pub struct DefinitionResult {
 }
 
 #[derive(Debug)]
+pub struct LSPCompletion {
+    pub label: String,
+    pub details: Option<String>,
+    pub location: LSPLocation,
+}
+
+#[derive(Debug, Default)]
+pub struct LSPLocation {
+    pub uri: String,
+    pub range: Range,
+}
+
+#[derive(Debug)]
+pub struct CompletionResult {
+    pub id: RequestId,
+    pub list: Vec<LSPCompletion>,
+}
+
+#[derive(Debug)]
 pub enum LspResult {
     OK,
     Definition(DefinitionResult),
+    Completion(CompletionResult),
 }
 
 #[allow(non_snake_case)]
@@ -74,4 +95,62 @@ pub fn handle_definition(req: Request, state: &mut State) -> Option<LspResult> {
         }
         None => None,
     }
+}
+
+
+
+pub fn handle_completion(req: Request, state: &mut State) -> Option<LspResult> {
+    let params: CompletionParams = serde_json::from_value(req.params).ok()?;
+    let uri = params.text_document_position.text_document.uri.as_str();
+    let doc = state.get_document(uri)?;
+
+    let position = params.text_document_position.position;
+    let line = doc.lines().nth(position.line as usize)?;
+
+    let items = match get_position_type(doc, position) {
+        PositionType::Depends => {
+            let commands = get_commands(doc);
+            on_completion_depends(&commands, uri, line, position).ok()?
+        },
+        // TODO: mixins
+        _ => return None,
+    };
+    Some(LspResult::Completion(CompletionResult {
+        id: req.id,
+        list: items,
+    }))
+}
+
+fn on_completion_depends(commands: &Vec<Command>, uri: &str, line: &str, position: Position) -> anyhow::Result<Vec<LSPCompletion>> {
+    let word = word_before_cursor(
+        line,
+        position.character as usize,
+        |c: char| c.is_whitespace(),
+    );
+    let after = word_after_cursor(line, position.character as usize, |c| {
+        c.is_whitespace()
+    });
+
+    commands
+    .iter()
+    .map(|cmd| -> anyhow::Result<LSPCompletion> {
+        Ok(LSPCompletion {
+            label: cmd.name.clone(),
+            details: None,
+            location: LSPLocation {
+                uri: uri.to_string(),
+                range: Range {
+                    start: Position {
+                        line: position.line,
+                        character: position.character - u32::try_from(word.len())?,
+                    },
+                    end: Position {
+                        line: position.line,
+                        character: position.character + u32::try_from(after.len())?,
+                    },
+                },
+            }
+        })
+    })
+    .collect()
 }
