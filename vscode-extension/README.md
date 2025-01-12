@@ -2,7 +2,8 @@
 
 ## Features
 
-- **Go To Definition**: Navigate to definitions of `mixins`
+- **Go To Definition**
+  - Navigate to definitions of `mixins` files
 
 ## Configuration
 
@@ -12,7 +13,7 @@ Initialization options:
 
 ## Installation
 
-## Build from source
+### Build from source
 
 ```sh
 cargo build --release
@@ -24,6 +25,12 @@ Executable can then be found at _target/release/lets_ls
 
 Extension can be found [here](https://marketplace.visualstudio.com/items?itemName=kindritskyimax.lets-ls).
 
-This extension supports configuration which needs to be set up because _lets_ls_
-itself isn't installed along with the extension but it needs to be downloaded from
-releases, brew or built from source.
+For now, you need to install `lets_ls` binary yourself since extension does not support binarry installation yet. See [Installation](#installation)
+
+After binary installed, you can edit `Lets LS` extension configuration and specify binary path.
+
+By default its `lets_ls`. If you have any trouble with language server not starting, try to set full path to your binary.
+
+### Settings
+
+![vscode settings](./docs/images/vscode-settings.png)

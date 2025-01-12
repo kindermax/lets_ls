@@ -3,7 +3,9 @@
 ## Supported features
 
 * [x] Goto definition
-* [ ] Completion
+  - mixins
+* [x] Completion
+  - depends
 * [ ] Diagnostics
 * [ ] Hover
 * [ ] Document highlight
@@ -60,7 +62,7 @@ In order for `nvim-lspconfig` to recognize lets_ls we must define config for `le
 require("lspconfig.configs").lets_ls = {
   default_config = {
     cmd = { 
-      "/Users/max/code/projects/lets_ls/target/debug/lets_ls",
+      "lets_ls",
     },
     filetypes = { "yaml.lets" },
     root_dir = util.root_pattern("lets.yaml"),
