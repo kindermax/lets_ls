@@ -4,6 +4,8 @@
 
 - **Go To Definition**
   - Navigate to definitions of `mixins` files
+- **Completion**
+  - Complete commands in `depends`
 
 ## Configuration
 

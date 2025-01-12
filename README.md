@@ -3,9 +3,9 @@
 ## Supported features
 
 * [x] Goto definition
-  - mixins
+  - Navigate to definitions of `mixins` files
 * [x] Completion
-  - depends
+  - Complete commands in `depends`
 * [ ] Diagnostics
 * [ ] Hover
 * [ ] Document highlight
