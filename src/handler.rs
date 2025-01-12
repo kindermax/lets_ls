@@ -1,12 +1,12 @@
 use lsp_server::{Notification, Request, RequestId};
-use lsp_types::{CompletionParams, Position};
+use lsp_types::CompletionParams;
 use lsp_types::{
     lsif::DefinitionResultType, request::GotoTypeDefinitionParams, DidChangeTextDocumentParams,
     DidOpenTextDocumentParams, Location, Range,
 };
 
 use crate::state::State;
-use crate::treesitter::{extract_filename, get_commands, get_position_type, is_mixin_root_node, word_after_cursor, word_before_cursor, Command, PositionType};
+use crate::treesitter::{extract_filename, get_commands, get_current_command, get_position_type, Command, PositionType};
 
 #[derive(Debug)]
 pub struct DefinitionResult {
@@ -18,7 +18,7 @@ pub struct DefinitionResult {
 pub struct LSPCompletion {
     pub label: String,
     pub details: Option<String>,
-    pub location: LSPLocation,
+    pub location: Option<LSPLocation>, // to support textEdit
 }
 
 #[derive(Debug, Default)]
@@ -76,11 +76,12 @@ pub fn handle_definition(req: Request, state: &mut State) -> Option<LspResult> {
     let doc = state.get_document(uri)?;
     let pos = params.text_document_position_params.position;
 
-    if !is_mixin_root_node(doc, &pos) {
+    if !matches!(get_position_type(doc, &pos), PositionType::Mixins) {
         return None;
     }
 
     let filename = extract_filename(doc, &pos)?;
+    // TODO: check if file exists
 
     let uri = go_to_def_filename(uri, &filename).parse().ok();
     match uri {
@@ -97,22 +98,21 @@ pub fn handle_definition(req: Request, state: &mut State) -> Option<LspResult> {
     }
 }
 
-
-
 pub fn handle_completion(req: Request, state: &mut State) -> Option<LspResult> {
     let params: CompletionParams = serde_json::from_value(req.params).ok()?;
     let uri = params.text_document_position.text_document.uri.as_str();
     let doc = state.get_document(uri)?;
-
     let position = params.text_document_position.position;
-    let line = doc.lines().nth(position.line as usize)?;
 
-    let items = match get_position_type(doc, position) {
+    let items = match get_position_type(doc, &position) {
         PositionType::Depends => {
             let commands = get_commands(doc);
-            on_completion_depends(&commands, uri, line, position).ok()?
+            let current_command = get_current_command(doc, &position)?;
+            on_completion_depends(&current_command, &commands).ok()?
         },
-        // TODO: mixins
+        PositionType::Mixins => {
+            on_completion_mixins().ok()?
+        },
         _ => return None,
     };
     Some(LspResult::Completion(CompletionResult {
@@ -121,36 +121,73 @@ pub fn handle_completion(req: Request, state: &mut State) -> Option<LspResult> {
     }))
 }
 
-fn on_completion_depends(commands: &Vec<Command>, uri: &str, line: &str, position: Position) -> anyhow::Result<Vec<LSPCompletion>> {
-    let word = word_before_cursor(
-        line,
-        position.character as usize,
-        |c: char| c.is_whitespace(),
-    );
-    let after = word_after_cursor(line, position.character as usize, |c| {
-        c.is_whitespace()
-    });
-
+fn on_completion_depends(current_command: &Command, commands: &[Command]) -> anyhow::Result<Vec<LSPCompletion>> {
     commands
     .iter()
+    // TODO: do not complete already added commands to depends list
+    .filter(|cmd| cmd.name != current_command.name)
     .map(|cmd| -> anyhow::Result<LSPCompletion> {
         Ok(LSPCompletion {
             label: cmd.name.clone(),
             details: None,
-            location: LSPLocation {
-                uri: uri.to_string(),
-                range: Range {
-                    start: Position {
-                        line: position.line,
-                        character: position.character - u32::try_from(word.len())?,
-                    },
-                    end: Position {
-                        line: position.line,
-                        character: position.character + u32::try_from(after.len())?,
-                    },
-                },
-            }
+            location: None,
         })
     })
     .collect()
+}
+
+fn on_completion_mixins() -> anyhow::Result<Vec<LSPCompletion>> {
+    // walk current dir or take word as dir if with /
+    Ok(vec![])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use lsp_types::Position;
+
+    #[test]
+    fn test_complete_depends_block_sequence() {
+        let doc = r#"
+shell: bash
+commands:
+  test:
+    cmd: echo Test
+    depends:
+      -
+  test2:
+    cmd: echo Test2"#
+            .trim();
+
+        let position = Position::new(5, 7);
+        let commands = get_commands(doc);
+        let command = get_current_command(doc, &position).expect("Command not found");
+        let result = on_completion_depends(&command, &commands).expect("Completion failed");
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].label, "test2");
+        assert!(result[0].location.is_none());
+    }
+
+    #[test]
+    fn test_complete_depends_flow_node() {
+        let doc = r#"
+shell: bash
+commands:
+  test:
+    cmd: echo Test
+    depends: []
+  test2:
+    cmd: echo Test2"#
+            .trim();
+
+        let position = Position::new(4, 14);
+        let commands = get_commands(doc);
+        let command = get_current_command(doc, &position).expect("Command not found");
+        let result = on_completion_depends(&command, &commands).expect("Completion failed");
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].label, "test2");
+        assert!(result[0].location.is_none());
+    }
 }
