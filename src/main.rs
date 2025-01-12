@@ -3,12 +3,14 @@ use std::error::Error;
 use lsp_server::{Connection, Message};
 use lsp_types::ServerCapabilities;
 
-use crate::handler::{handle_definition, handle_didChange, handle_didOpen, LspResult};
+use crate::handler::{handle_completion, handle_definition, handle_didChange, handle_didOpen, LspResult};
 use crate::state::State;
+use crate::responses::{completion_response, definition_response};
 
 pub mod handler;
 pub mod state;
 pub mod treesitter;
+pub mod responses;
 
 fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     eprintln!("Lets LSP server starting");
@@ -22,6 +24,22 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         )),
         hover_provider: Some(lsp_types::HoverProviderCapability::Simple(true)),
         definition_provider: Some(lsp_types::OneOf::Left(true)),
+        completion_provider: Some(lsp_types::CompletionOptions {
+            resolve_provider: Some(false),
+            trigger_characters: Some(vec![
+                ".".to_string(),
+                ":".to_string(),
+                " ".to_string(),
+                "$".to_string(),
+                "- ".to_string(),
+                "[".to_string(),
+            ]),
+            work_done_progress_options: lsp_types::WorkDoneProgressOptions {
+                work_done_progress: None,
+            },
+            all_commit_characters: None,
+            completion_item: None,
+        }),
         ..ServerCapabilities::default()
     };
 
@@ -43,6 +61,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
                 eprintln!("--> Request: {:?}", req);
                 match req.method.as_str() {
                     "textDocument/definition" => handle_definition(req, &mut state),
+                    "textDocument/completion" => handle_completion(req, &mut state),
                     _ => None,
                 }
             }
@@ -64,13 +83,10 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
             match result {
                 LspResult::OK => (),
                 LspResult::Definition(result) => {
-                    let result = lsp_server::Response {
-                        id: result.id,
-                        result: Some(serde_json::to_value(result.value)?),
-                        error: None,
-                    };
-                    let response = Message::Response(result);
-                    connection.sender.send(response)?
+                    connection.sender.send(definition_response(result)?)?
+                },
+                LspResult::Completion(result) => {
+                    connection.sender.send(completion_response(result))?
                 }
             }
         }
