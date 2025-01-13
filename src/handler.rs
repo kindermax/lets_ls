@@ -6,7 +6,7 @@ use lsp_types::{
 };
 
 use crate::state::State;
-use crate::treesitter::{Parser, Command, PositionType};
+use crate::treesitter::{Command, Parser, PositionType};
 
 #[derive(Debug)]
 pub struct DefinitionResult {
@@ -59,9 +59,16 @@ pub fn handle_didChange(notf: Notification, state: &mut State) -> Option<LspResu
     Some(LspResult::OK)
 }
 
-fn go_to_def_filename(uri: &str, filename: &str) -> String {
-    let parent = std::path::Path::new(uri).parent().unwrap();
-    parent.join(filename).to_str().unwrap().to_string()
+// Construct a new URI from the current URI and the filename and return it if file exists.
+// uri: current URI in format file://path/to/file
+// filename: filename to append to the current URI, e.g. "lets.my.yaml"
+fn go_to_def_uri(uri: &str, filename: &str) -> Option<String> {
+    let parent = std::path::Path::new(uri.strip_prefix("file://")?).parent()?;
+    let file = parent.join(filename);
+    if file.exists() {
+        return Some(format!("file://{}", file.to_str()?));
+    }
+    None
 }
 
 pub fn handle_definition(req: Request, state: &mut State) -> Option<LspResult> {
@@ -83,14 +90,14 @@ pub fn handle_definition(req: Request, state: &mut State) -> Option<LspResult> {
     }
 
     let filename = parser.extract_filename(doc, &pos)?;
-    // TODO: check if file exists
 
-    let uri = go_to_def_filename(uri, &filename).parse().ok();
+    let uri = go_to_def_uri(uri, &filename);
     match uri {
         Some(uri) => {
-            let result = DefinitionResultType::Scalar(
-                lsp_types::lsif::LocationOrRangeId::Location(Location::new(uri, Range::default())),
-            );
+            let result =
+                DefinitionResultType::Scalar(lsp_types::lsif::LocationOrRangeId::Location(
+                    Location::new(uri.parse().ok()?, Range::default()),
+                ));
             Some(LspResult::Definition(DefinitionResult {
                 id: req.id,
                 value: result,
@@ -112,10 +119,8 @@ pub fn handle_completion(req: Request, state: &mut State) -> Option<LspResult> {
             let commands = parser.get_commands(doc);
             let current_command = parser.get_current_command(doc, &position)?;
             on_completion_depends(&current_command, &commands).ok()?
-        },
-        PositionType::Mixins => {
-            on_completion_mixins().ok()?
-        },
+        }
+        PositionType::Mixins => on_completion_mixins().ok()?,
         _ => return None,
     };
     Some(LspResult::Completion(CompletionResult {
@@ -124,19 +129,22 @@ pub fn handle_completion(req: Request, state: &mut State) -> Option<LspResult> {
     }))
 }
 
-fn on_completion_depends(current_command: &Command, commands: &[Command]) -> anyhow::Result<Vec<LSPCompletion>> {
+fn on_completion_depends(
+    current_command: &Command,
+    commands: &[Command],
+) -> anyhow::Result<Vec<LSPCompletion>> {
     commands
-    .iter()
-    // TODO: do not complete already added commands to depends list
-    .filter(|cmd| cmd.name != current_command.name)
-    .map(|cmd| -> anyhow::Result<LSPCompletion> {
-        Ok(LSPCompletion {
-            label: cmd.name.clone(),
-            details: None,
-            location: None,
+        .iter()
+        // TODO: do not complete already added commands to depends list
+        .filter(|cmd| cmd.name != current_command.name)
+        .map(|cmd| -> anyhow::Result<LSPCompletion> {
+            Ok(LSPCompletion {
+                label: cmd.name.clone(),
+                details: None,
+                location: None,
+            })
         })
-    })
-    .collect()
+        .collect()
 }
 
 fn on_completion_mixins() -> anyhow::Result<Vec<LSPCompletion>> {
@@ -148,6 +156,18 @@ fn on_completion_mixins() -> anyhow::Result<Vec<LSPCompletion>> {
 mod tests {
     use super::*;
     use lsp_types::Position;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_go_to_def_filename() {
+        let file = NamedTempFile::new().unwrap();
+        let temppath = file.into_temp_path();
+        let filename = temppath.file_name().unwrap().to_str().unwrap();
+        let path = temppath.to_str().unwrap();
+
+        let uri = format!("file://{path}");
+        assert_eq!(go_to_def_uri(&uri, filename), Some(uri));
+    }
 
     #[test]
     fn test_complete_depends_block_sequence() {
@@ -165,7 +185,9 @@ commands:
         let parser = Parser::new();
         let position = Position::new(5, 7);
         let commands = parser.get_commands(doc);
-        let command = parser.get_current_command(doc, &position).expect("Command not found");
+        let command = parser
+            .get_current_command(doc, &position)
+            .expect("Command not found");
         let result = on_completion_depends(&command, &commands).expect("Completion failed");
 
         assert_eq!(result.len(), 1);
@@ -188,7 +210,9 @@ commands:
         let position = Position::new(4, 14);
         let parser = Parser::new();
         let commands = parser.get_commands(doc);
-        let command = parser.get_current_command(doc, &position).expect("Command not found");
+        let command = parser
+            .get_current_command(doc, &position)
+            .expect("Command not found");
         let result = on_completion_depends(&command, &commands).expect("Completion failed");
 
         assert_eq!(result.len(), 1);

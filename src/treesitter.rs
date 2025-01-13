@@ -2,7 +2,6 @@ use lsp_types::Position;
 use streaming_iterator::StreamingIterator;
 use tree_sitter::{Node, Point, Query, QueryCursor};
 
-
 #[derive(Debug)]
 pub enum PositionType {
     Mixins,
@@ -14,7 +13,11 @@ fn is_cursor_within_node(node: &Node, pos: &lsp_types::Position) -> bool {
     is_cursor_within_node_points(&node.start_position(), &node.end_position(), pos)
 }
 
-fn is_cursor_within_node_points(start_point: &Point, end_point: &Point, pos: &lsp_types::Position) -> bool {
+fn is_cursor_within_node_points(
+    start_point: &Point,
+    end_point: &Point,
+    pos: &lsp_types::Position,
+) -> bool {
     if (pos.line as usize) < start_point.row || pos.line as usize > end_point.row {
         return false;
     }
@@ -43,11 +46,7 @@ fn get_node_text<'a>(node: &Node, text: &'a str) -> Option<&'a str> {
     None
 }
 
-pub fn word_before_cursor(
-    line: &str,
-    char_index: usize,
-    predicate: fn(c: char) -> bool,
-) -> &str {
+pub fn word_before_cursor(line: &str, char_index: usize, predicate: fn(c: char) -> bool) -> &str {
     if char_index == 0 || char_index > line.len() {
         return "";
     }
@@ -63,11 +62,7 @@ pub fn word_before_cursor(
     &line[start..char_index]
 }
 
-pub fn word_after_cursor(
-    line: &str,
-    char_index: usize,
-    predicate: fn(c: char) -> bool,
-) -> &str {
+pub fn word_after_cursor(line: &str, char_index: usize, predicate: fn(c: char) -> bool) -> &str {
     if char_index >= line.len() {
         return "";
     }
@@ -82,17 +77,19 @@ pub fn word_after_cursor(
     &line[start..end]
 }
 
-pub struct Parser { }
+pub struct Parser {}
 
 impl Parser {
-    pub fn new() -> Self { Self {} }
+    pub fn new() -> Self {
+        Self {}
+    }
 
     fn new_parser(&self) -> tree_sitter::Parser {
         let mut parser = tree_sitter::Parser::new();
         let language = tree_sitter_yaml::LANGUAGE.into();
         parser
-        .set_language(&language)
-        .expect("could not load yaml language");
+            .set_language(&language)
+            .expect("could not load yaml language");
 
         parser
     }
@@ -113,7 +110,8 @@ impl Parser {
 
     pub fn is_mixin_root_node(&self, text: &str, pos: &lsp_types::Position) -> bool {
         let mut parser = self.new_parser();
-        let query = self.new_query(r#"
+        let query = self.new_query(
+            r#"
         (block_mapping_pair
             key: (flow_node) @key
             value: (block_node
@@ -122,7 +120,8 @@ impl Parser {
                         (flow_node) @value)))
             (#eq? @key "mixins")
         )
-        "#);
+        "#,
+        );
 
         let tree = parser.parse(text, None).expect("could not parse text");
         let root = tree.root_node();
@@ -148,7 +147,8 @@ impl Parser {
 
     pub fn is_depends_node(&self, text: &str, pos: &lsp_types::Position) -> bool {
         let mut parser = self.new_parser();
-        let query = self.new_query(r#"
+        let query = self.new_query(
+            r#"
         (
             block_mapping_pair
             key: (flow_node)@keydepends
@@ -159,7 +159,8 @@ impl Parser {
             ]
             (#eq? @keydepends "depends")
         )
-        "#);
+        "#,
+        );
 
         let tree = parser.parse(text, None).expect("could not parse text");
         let root = tree.root_node();
@@ -171,19 +172,20 @@ impl Parser {
 
         while let Some(m) = matches.next() {
             let found = m.captures.iter().any(|c| {
-                    if c.index == depends_idx {
-                        let kind = c.node.kind();
-                        match kind {
-                            "block_sequence_item" => {
-                                return is_cursor_within_node(&c.node, pos) || is_cursor_at_line(&c.node, pos);
-                            },
-                            "flow_sequence" | "flow_node" => {
-                                return is_cursor_within_node(&c.node, pos);
-                            },
-                            _ => return false,
+                if c.index == depends_idx {
+                    let kind = c.node.kind();
+                    match kind {
+                        "block_sequence_item" => {
+                            return is_cursor_within_node(&c.node, pos)
+                                || is_cursor_at_line(&c.node, pos);
                         }
+                        "flow_sequence" | "flow_node" => {
+                            return is_cursor_within_node(&c.node, pos);
+                        }
+                        _ => return false,
                     }
-                    false
+                }
+                false
             });
             if found {
                 return true;
@@ -192,10 +194,10 @@ impl Parser {
         false
     }
 
-
     pub fn extract_filename(&self, text: &str, pos: &lsp_types::Position) -> Option<String> {
         let mut parser = self.new_parser();
-        let query = self.new_query(r#"
+        let query = self.new_query(
+            r#"
         (block_mapping_pair
             key: (flow_node) @key
             value: (block_node
@@ -204,7 +206,8 @@ impl Parser {
                         (flow_node) @value)))
             (#eq? @key "mixins")
         )
-        "#);
+        "#,
+        );
 
         let tree = parser.parse(text, None).expect("could not parse text");
         let root = tree.root_node();
@@ -215,7 +218,8 @@ impl Parser {
         while let Some(m) = matches.next() {
             let found = m.captures.iter().find(|c| {
                 if let Some(parent) = c.node.parent() {
-                    return parent.kind() == "block_sequence_item" && is_cursor_at_line(&c.node, pos);
+                    return parent.kind() == "block_sequence_item"
+                        && is_cursor_at_line(&c.node, pos);
                 }
                 false
             });
@@ -228,7 +232,8 @@ impl Parser {
 
     pub fn get_commands(&self, doc: &str) -> Vec<Command> {
         let mut parser = self.new_parser();
-        let query = self.new_query(r#"
+        let query = self.new_query(
+            r#"
         (
             stream(
                 document(
@@ -249,7 +254,8 @@ impl Parser {
             )
             (#eq? @parent "commands")
         )
-        "#);
+        "#,
+        );
 
         let tree = parser.parse(doc, None).expect("could not parse text");
         let root = tree.root_node();
@@ -277,7 +283,8 @@ impl Parser {
 
     pub fn get_current_command(&self, doc: &str, pos: &Position) -> Option<Command> {
         let mut parser = self.new_parser();
-        let query = self.new_query(r#"
+        let query = self.new_query(
+            r#"
         (stream
         (document
             (block_node
@@ -293,7 +300,8 @@ impl Parser {
             ))))
             )
             (#eq? @commands "commands")
-        )"#);
+        )"#,
+        );
 
         let tree = parser.parse(doc, None).expect("could not parse text");
         let root = tree.root_node();
@@ -309,18 +317,20 @@ impl Parser {
                     if !is_cursor_within_node(&c.node, pos) {
                         continue;
                     }
-                    return c.node.child_by_field_name("key")
+                    return c
+                        .node
+                        .child_by_field_name("key")
                         .and_then(|n| get_node_text(&n, doc))
-                        .map(|name| Command { name: name.to_string() });
+                        .map(|name| Command {
+                            name: name.to_string(),
+                        });
                 }
             }
         }
 
         None
     }
-
 }
-
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Command {
@@ -337,22 +347,62 @@ mod tests {
         let tests = vec![
             // cases where node is a single line
             // cursor not on line
-            (Point{row: 1, column: 0}, Point{row: 1, column: 10}, Position::new(0, 0), false),
+            (
+                Point { row: 1, column: 0 },
+                Point { row: 1, column: 10 },
+                Position::new(0, 0),
+                false,
+            ),
             // cursor at start of line
-            (Point{row: 1, column: 0}, Point{row: 1, column: 10}, Position::new(1, 0), true),
+            (
+                Point { row: 1, column: 0 },
+                Point { row: 1, column: 10 },
+                Position::new(1, 0),
+                true,
+            ),
             // cursor at end of line
-            (Point{row: 1, column: 0}, Point{row: 1, column: 10}, Position::new(1, 10), true),
+            (
+                Point { row: 1, column: 0 },
+                Point { row: 1, column: 10 },
+                Position::new(1, 10),
+                true,
+            ),
             // cursor outside of line
-            (Point{row: 1, column: 0}, Point{row: 1, column: 10}, Position::new(1, 11), false),
+            (
+                Point { row: 1, column: 0 },
+                Point { row: 1, column: 10 },
+                Position::new(1, 11),
+                false,
+            ),
             // cases where node is a multiple lines
             // cursor at 2 out of 3 lines, where second line len is <= than third
-            (Point{row: 1, column: 0}, Point{row: 3, column: 10}, Position::new(2, 10), true),
+            (
+                Point { row: 1, column: 0 },
+                Point { row: 3, column: 10 },
+                Position::new(2, 10),
+                true,
+            ),
             // // cursor at 2 out of 3 lines, where second line len is > than third
-            (Point{row: 1, column: 0}, Point{row: 3, column: 10}, Position::new(2, 15), true),
+            (
+                Point { row: 1, column: 0 },
+                Point { row: 3, column: 10 },
+                Position::new(2, 15),
+                true,
+            ),
             // cursor at 3 line
-            (Point{row: 1, column: 0}, Point{row: 3, column: 10}, Position::new(3, 10), true),
+            (
+                Point { row: 1, column: 0 },
+                Point { row: 3, column: 10 },
+                Position::new(3, 10),
+                true,
+            ),
             // cursor at 4 line, out of node
-            (Point{row: 1, column: 0}, Point{row: 3, column: 10}, Position::new(4, 1), false),
+            (
+                Point { row: 1, column: 0 },
+                Point { row: 3, column: 10 },
+                Position::new(4, 1),
+                false,
+            ),
         ];
         for (i, (sp, ep, pos, expect)) in tests.into_iter().enumerate() {
             let result = is_cursor_within_node_points(&sp, &ep, &pos);
@@ -362,7 +412,6 @@ mod tests {
             );
         }
     }
-
 
     #[test]
     fn test_detect_mixins_node() {
@@ -409,9 +458,7 @@ commands:
     cmd: echo Test2"#
             .trim();
 
-        let tests = vec![
-            (Position::new(8, 15), true),
-        ];
+        let tests = vec![(Position::new(8, 15), true)];
 
         let parser = Parser::new();
         for (i, (pos, expect)) in tests.into_iter().enumerate() {
@@ -456,7 +503,6 @@ commands:
         }
     }
 
-
     #[test]
     fn test_extract_filename_from_mixins_item() {
         let doc = r#"
@@ -500,14 +546,17 @@ commands:
         let parser = Parser::new();
         let commands = parser.get_commands(doc);
         assert_eq!(commands.len(), 2);
-        assert_eq!(commands, vec![
-            Command {
-                name: "test".to_string(),
-            },
-            Command {
-                name: "test2".to_string(),
-            },
-        ]);
+        assert_eq!(
+            commands,
+            vec![
+                Command {
+                    name: "test".to_string(),
+                },
+                Command {
+                    name: "test2".to_string(),
+                },
+            ]
+        );
     }
 
     #[test]
@@ -525,9 +574,12 @@ commands:
 
         let parser = Parser::new();
         let command = parser.get_current_command(doc, &Position::new(5, 4));
-        assert_eq!(command, Some(Command {
-            name: "test".to_string(),
-        }));
+        assert_eq!(
+            command,
+            Some(Command {
+                name: "test".to_string(),
+            })
+        );
     }
 
     #[test]
@@ -544,12 +596,16 @@ commands:
   test3:
     depends: [test, ]
     cmd: echo Test3
-    "#.trim();
+    "#
+        .trim();
 
         let parser = Parser::new();
         let command = parser.get_current_command(doc, &Position::new(9, 20));
-        assert_eq!(command, Some(Command {
-            name: "test3".to_string(),
-        }));
+        assert_eq!(
+            command,
+            Some(Command {
+                name: "test3".to_string(),
+            })
+        );
     }
 }

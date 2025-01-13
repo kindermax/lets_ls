@@ -25,11 +25,12 @@ pub fn completion_response(result: handler::CompletionResult) -> Message {
                     };
 
                     if let Some(documentation) = c.details.clone() {
-                        item.documentation =
-                            Some(lsp_types::Documentation::MarkupContent(lsp_types::MarkupContent {
+                        item.documentation = Some(lsp_types::Documentation::MarkupContent(
+                            lsp_types::MarkupContent {
                                 kind: lsp_types::MarkupKind::Markdown,
                                 value: documentation.clone(),
-                            }));
+                            },
+                        ));
                     }
 
                     item
