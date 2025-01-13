@@ -3,14 +3,16 @@ use std::error::Error;
 use lsp_server::{Connection, Message};
 use lsp_types::ServerCapabilities;
 
-use crate::handler::{handle_completion, handle_definition, handle_didChange, handle_didOpen, LspResult};
-use crate::state::State;
+use crate::handler::{
+    handle_completion, handle_definition, handle_didChange, handle_didOpen, LspResult,
+};
 use crate::responses::{completion_response, definition_response};
+use crate::state::State;
 
 pub mod handler;
+pub mod responses;
 pub mod state;
 pub mod treesitter;
-pub mod responses;
 
 fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     eprintln!("Lets LSP server starting");
@@ -58,7 +60,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     for msg in &connection.receiver {
         let result: Option<LspResult> = match msg {
             Message::Request(req) => {
-                eprintln!("--> Request: {:?}", req);
+                eprintln!("--> Request: {:?}", req.method);
                 match req.method.as_str() {
                     "textDocument/definition" => handle_definition(req, &mut state),
                     "textDocument/completion" => handle_completion(req, &mut state),
@@ -66,7 +68,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
                 }
             }
             Message::Notification(notf) => {
-                eprintln!("--> Notification: {:?}", notf);
+                eprintln!("--> Notification: {:?}", notf.method);
                 match notf.method.as_str() {
                     "textDocument/didOpen" => handle_didOpen(notf, &mut state),
                     "textDocument/didChange" => handle_didChange(notf, &mut state),
@@ -84,7 +86,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
                 LspResult::OK => (),
                 LspResult::Definition(result) => {
                     connection.sender.send(definition_response(result)?)?
-                },
+                }
                 LspResult::Completion(result) => {
                     connection.sender.send(completion_response(result))?
                 }
