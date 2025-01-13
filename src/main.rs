@@ -64,6 +64,12 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
                 match req.method.as_str() {
                     "textDocument/definition" => handle_definition(req, &mut state),
                     "textDocument/completion" => handle_completion(req, &mut state),
+                    "shutdown" => {
+                        connection.sender.send(
+                            Message::Response(lsp_server::Response::new_ok(req.id, ()))
+                        )?;
+                        break;
+                    },
                     _ => None,
                 }
             }
