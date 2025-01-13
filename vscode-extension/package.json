@@ -41,7 +41,13 @@
 					"description": "Log path for the LS."
 				}
 			}
-		}
+		},
+		"commands": [
+			{
+				"command": "lets-ls.restart",
+				"title": "Lets LS: Restart LSP"
+			}
+		]
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",

@@ -6,11 +6,14 @@
 import { execSync } from "child_process";
 import { ExtensionContext } from "vscode";
 import * as vscode from "vscode";
-
+import {
+  OutputChannel,
+} from "vscode";
 import {
   LanguageClient,
   LanguageClientOptions,
   ServerOptions,
+  RevealOutputChannelOn,
 } from "vscode-languageclient/node";
 
 const SKIP_VERSION_STATE_KEY = "skipUpdate";
@@ -21,6 +24,8 @@ export function activate(context: ExtensionContext) {
   if (client?.isRunning()) {
     return;
   }
+
+  const outputChannel: OutputChannel = vscode.window.createOutputChannel("Lets LS");
 
   const config = vscode.workspace.getConfiguration("letsLs");
 
@@ -41,18 +46,43 @@ export function activate(context: ExtensionContext) {
     initializationOptions: {
       log_path: config.get("logPath"),
     },
+    outputChannel,
+    outputChannelName: 'Lets Language Server',
+    revealOutputChannelOn: RevealOutputChannelOn.Never,
+    initializationFailedHandler(err) {
+      outputChannel.appendLine('Initialization failed');
+      outputChannel.appendLine(err.message);
+      if (err.stack) {
+        outputChannel.appendLine(err.stack);
+      }
+      return false;
+    },
   };
 
   // Create the language client and start the client.
   client = new LanguageClient(
     "letsLs",
-    "Lets LS",
     serverOptions,
     clientOptions,
   );
 
   // Start the client. This will also launch the server
   client.start();
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('lets-ls.restart', async () => {
+      try {
+        outputChannel.appendLine('Stopping Lets Language server');
+        await client.stop();
+
+        outputChannel.appendLine('Restarting Lets Language server');
+        await client.start();
+        outputChannel.appendLine('Lets Language server restarted');
+      } catch (e) {
+        outputChannel.appendLine(`Failed to restart Lets Language server: ${e}`);
+      }
+    })
+  );
 
   checkUpdates(context, config.get("executablePath"));
 }
