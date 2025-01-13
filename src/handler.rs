@@ -6,7 +6,7 @@ use lsp_types::{
 };
 
 use crate::state::State;
-use crate::treesitter::{extract_filename, get_commands, get_current_command, get_position_type, Command, PositionType};
+use crate::treesitter::{Parser, Command, PositionType};
 
 #[derive(Debug)]
 pub struct DefinitionResult {
@@ -76,11 +76,13 @@ pub fn handle_definition(req: Request, state: &mut State) -> Option<LspResult> {
     let doc = state.get_document(uri)?;
     let pos = params.text_document_position_params.position;
 
-    if !matches!(get_position_type(doc, &pos), PositionType::Mixins) {
+    let parser = Parser::new();
+
+    if !matches!(parser.get_position_type(doc, &pos), PositionType::Mixins) {
         return None;
     }
 
-    let filename = extract_filename(doc, &pos)?;
+    let filename = parser.extract_filename(doc, &pos)?;
     // TODO: check if file exists
 
     let uri = go_to_def_filename(uri, &filename).parse().ok();
@@ -104,10 +106,11 @@ pub fn handle_completion(req: Request, state: &mut State) -> Option<LspResult> {
     let doc = state.get_document(uri)?;
     let position = params.text_document_position.position;
 
-    let items = match get_position_type(doc, &position) {
+    let parser = Parser::new();
+    let items = match parser.get_position_type(doc, &position) {
         PositionType::Depends => {
-            let commands = get_commands(doc);
-            let current_command = get_current_command(doc, &position)?;
+            let commands = parser.get_commands(doc);
+            let current_command = parser.get_current_command(doc, &position)?;
             on_completion_depends(&current_command, &commands).ok()?
         },
         PositionType::Mixins => {
@@ -159,9 +162,10 @@ commands:
     cmd: echo Test2"#
             .trim();
 
+        let parser = Parser::new();
         let position = Position::new(5, 7);
-        let commands = get_commands(doc);
-        let command = get_current_command(doc, &position).expect("Command not found");
+        let commands = parser.get_commands(doc);
+        let command = parser.get_current_command(doc, &position).expect("Command not found");
         let result = on_completion_depends(&command, &commands).expect("Completion failed");
 
         assert_eq!(result.len(), 1);
@@ -182,8 +186,9 @@ commands:
             .trim();
 
         let position = Position::new(4, 14);
-        let commands = get_commands(doc);
-        let command = get_current_command(doc, &position).expect("Command not found");
+        let parser = Parser::new();
+        let commands = parser.get_commands(doc);
+        let command = parser.get_current_command(doc, &position).expect("Command not found");
         let result = on_completion_depends(&command, &commands).expect("Completion failed");
 
         assert_eq!(result.len(), 1);
