@@ -112,16 +112,17 @@ pub fn handle_completion(req: Request, state: &mut State) -> Option<LspResult> {
     let uri = params.text_document_position.text_document.uri.as_str();
     let doc = state.get_document(uri)?;
     let position = params.text_document_position.position;
-
     let parser = Parser::new();
-    let items = match parser.get_position_type(doc, &position) {
+    let position_type = parser.get_position_type(doc, &position);
+
+    let items = match position_type {
         PositionType::Depends => {
             let commands = parser.get_commands(doc);
             let current_command = parser.get_current_command(doc, &position)?;
             on_completion_depends(&current_command, &commands).ok()?
         }
         PositionType::Mixins => on_completion_mixins().ok()?,
-        _ => return None,
+        _ => vec![],
     };
     Some(LspResult::Completion(CompletionResult {
         id: req.id,

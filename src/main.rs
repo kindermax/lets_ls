@@ -14,8 +14,17 @@ pub mod responses;
 pub mod state;
 pub mod treesitter;
 
+
+fn get_version() -> String {
+    let mut version = std::env!("CARGO_PKG_VERSION").to_string();
+    if cfg!(debug_assertions) {
+        version.push_str("-debug");
+    }
+    version.to_string()
+}
+
 fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
-    eprintln!("Lets LSP server starting");
+    eprintln!("Lets LSP server starting (version: {})", get_version());
 
     let (connection, io_threads) = Connection::stdio();
     let (id, _) = connection.initialize_start()?;
