@@ -7,7 +7,11 @@
 			"request": "launch",
 			"name": "Launch Client",
 			"runtimeExecutable": "${execPath}",
-			"args": ["--extensionDevelopmentPath=${workspaceRoot}"],
+			"args": [
+				"${workspaceFolder}/test-workspace",
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--disableExtensions"
+			],
 			"outFiles": [
 				"${workspaceRoot}/client/out/**/*.js",
 			],
