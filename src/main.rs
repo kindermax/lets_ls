@@ -24,7 +24,8 @@ fn get_version() -> String {
 }
 
 fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
-    eprintln!("Lets LSP server starting (version: {})", get_version());
+    env_logger::init();
+    log::info!("Lets LSP server starting (version: {})", get_version());
 
     let (connection, io_threads) = Connection::stdio();
     let (id, _) = connection.initialize_start()?;
@@ -69,7 +70,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     for msg in &connection.receiver {
         let result: Option<LspResult> = match msg {
             Message::Request(req) => {
-                eprintln!("--> Request: {:?}", req.method);
+                log::debug!("--> Request: {} {:?}", req.method, req.params);
                 match req.method.as_str() {
                     "textDocument/definition" => handle_definition(req, &mut state),
                     "textDocument/completion" => handle_completion(req, &mut state),
@@ -83,7 +84,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
                 }
             }
             Message::Notification(notf) => {
-                eprintln!("--> Notification: {:?}", notf.method);
+                log::debug!("--> Notification: {} {:?}", notf.method, notf.params);
                 match notf.method.as_str() {
                     "textDocument/didOpen" => handle_didOpen(notf, &mut state),
                     "textDocument/didChange" => handle_didChange(notf, &mut state),
@@ -91,11 +92,11 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
                 }
             }
             _ => {
-                eprintln!("--> Other message type: {:?}", msg);
+                log::debug!("--> Other message type: {:?}", msg);
                 None
             }
         };
-        eprintln!("<-- LspResult: {:?}", result);
+        log::debug!("<-- LspResult: {:?}", result);
         if let Some(result) = result {
             match result {
                 LspResult::OK => (),
@@ -111,7 +112,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
 
     io_threads.join()?;
 
-    eprintln!("Lets LSP server shutting down");
+    log::info!("Lets LSP server shutting down");
 
     Ok(())
 }
