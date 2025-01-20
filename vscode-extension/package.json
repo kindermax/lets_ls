@@ -1,6 +1,7 @@
 {
 	"name": "lets-ls",
-	"description": "A language server for lets task runner",
+	"displayName": "Lets task runner",
+	"description": "VSCode extension for lets task runner with language server support",
 	"author": "Kindritskyi Max",
 	"license": "MIT",
 	"version": "0.1.0",
@@ -28,24 +29,109 @@
 	"contributes": {
 		"configuration": {
 			"type": "object",
-			"title": "Lets LS",
+			"title": "Lets task runner",
 			"properties": {
 				"letsLs.executablePath": {
 					"type": "string",
 					"default": "lets_ls",
-					"description": "Path to the lets ls."
+					"description": "Path to the lets ls binary."
 				},
 				"letsLs.logPath": {
 					"type": "string",
 					"default": "~/.cache/lets_ls/log/lets_ls.log",
-					"description": "Log path for the LS."
+					"description": "Log path for the language server."
+				},
+				"letsLs.debug": {
+					"type": "boolean",
+					"default": false,
+					"description": "Run language server in debug mode (more logs)."
 				}
 			}
 		},
 		"commands": [
 			{
 				"command": "lets-ls.restart",
-				"title": "Lets LS: Restart LSP"
+				"category": "Lets",
+				"title": "Restart LSP"
+			},
+			{
+				"command": "lets-ls.showCommands",
+				"category": "Lets",
+				"title": "Show commands",
+				"icon": "$(list-tree)"
+			},
+			{
+				"command": "lets-ls.refresh",
+				"category": "Lets",
+				"title": "Refresh commands",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "lets-ls.runCommand",
+				"title": "Run command",
+				"category": "Lets",
+				"icon": "$(play)"
+			}
+		],
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "lets-ls",
+					"title": "Lets",
+					"icon": "./res/activityBarIcon.svg"
+				}
+			]
+		},
+		"views": {
+			"lets-ls": [
+				{
+					"id": "lets-ls.commands",
+					"name": "Commands"
+				}
+			]
+		},
+		"menus": {
+			"commandPalette": [
+				{
+					"command": "lets-ls.runCommand",
+					"when": "false"
+				}
+			],
+			"view/title": [
+				{
+					"command": "lets-ls.refresh",
+					"when": "view == lets-ls.commands",
+					"group": "navigation@1"
+				}
+			],
+		     "view/item/context": [
+				{
+					"command": "lets-ls.runCommand",
+					"when": "view == lets-ls.commands && viewItem == commandTreeItem",
+					"group": "inline@1"
+				}
+			]
+		},
+		"colors": [
+			{
+				"id": "letsls.workspaceIcon",
+				"description": "Color for workspace icons in the activity bar.",
+				"defaults": {
+				"dark": "#2e85e7",
+				"light": "#2e85e7",
+				"highContrast": "#2e85e7",
+				"highContrastLight": "#2e85e7"
+				}
+			},
+			{
+				"id": "letsls.upToDateIcon",
+				"description": "Color for up-to-date command icons in the activity bar.",
+				"defaults": {
+				"dark": "#00AA00",
+				"light": "#00AA00",
+				"highContrast": "#00AA00",
+				"highContrastLight": "#00AA00"
+				}
 			}
 		]
 	},
