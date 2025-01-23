@@ -134,12 +134,14 @@ export class LetsExtension {
             this.setTreeNesting(false);
         }));
 
+        // Run command without args
         context.subscriptions.push(vscode.commands.registerCommand('lets-ls.runCommand', (treeItem?: components.CommandTreeItem) => {
             log.info("Command: lets-ls.runCommand");
             if (treeItem?.letsCommand) {
                 this.letsService.runCommand(treeItem.letsCommand);
             }
         }));
+        // TODO: store custom commands, like a command with -w flag. We can save it to somewhere
     }
 
     async checkUpdates(context: ExtensionContext, executable: string): Promise<void> {
