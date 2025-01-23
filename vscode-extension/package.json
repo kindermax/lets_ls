@@ -4,7 +4,7 @@
 	"description": "VSCode extension for lets task runner with language server support",
 	"author": "Kindritskyi Max",
 	"license": "MIT",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/kindermax/lets_ls"
@@ -104,7 +104,7 @@
 					"group": "navigation@1"
 				}
 			],
-		     "view/item/context": [
+			"view/item/context": [
 				{
 					"command": "lets-ls.runCommand",
 					"when": "view == lets-ls.commands && viewItem == commandTreeItem",
@@ -117,20 +117,20 @@
 				"id": "letsls.workspaceIcon",
 				"description": "Color for workspace icons in the activity bar.",
 				"defaults": {
-				"dark": "#2e85e7",
-				"light": "#2e85e7",
-				"highContrast": "#2e85e7",
-				"highContrastLight": "#2e85e7"
+					"dark": "#2e85e7",
+					"light": "#2e85e7",
+					"highContrast": "#2e85e7",
+					"highContrastLight": "#2e85e7"
 				}
 			},
 			{
 				"id": "letsls.upToDateIcon",
 				"description": "Color for up-to-date command icons in the activity bar.",
 				"defaults": {
-				"dark": "#00AA00",
-				"light": "#00AA00",
-				"highContrast": "#00AA00",
-				"highContrastLight": "#00AA00"
+					"dark": "#00AA00",
+					"light": "#00AA00",
+					"highContrast": "#00AA00",
+					"highContrastLight": "#00AA00"
 				}
 			}
 		]
