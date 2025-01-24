@@ -87,4 +87,4 @@ return {
 
 ## Integration with VSCode
 
-Extension can be found [here](https://marketplace.visualstudio.com/items?itemName=kindritskyimax.lets-ls).
+Extension can be found [here](https://marketplace.visualstudio.com/items?itemName=kindritskyimax.vscode-lets).
